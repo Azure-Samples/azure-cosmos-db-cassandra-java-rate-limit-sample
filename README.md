@@ -11,7 +11,7 @@ urlFragment: azure-cosmos-db-cassandra-java-rate-limit-sample
 # Handling rate limited requests in the Azure Cosmos DB API for Cassandra
 Azure Cosmos DB is a globally distributed multi-model database. One of the supported APIs is the [Cassandra API](https://docs.microsoft.com/azure/cosmos-db/cassandra-introduction). This sample illustrates how to handle rate limited requests. These are also known as 429 errors, and are returned when the consumed throughput exceeds the number of [Request Units](https://docs.microsoft.com/azure/cosmos-db/request-units) that have been provisioned for the service. 
 
-In this code sample, we implement retry logic based on the ```RetryAfterMs``` property returned from the service. The is a similar to the approach implemented in the built-in ```getRetryAfterInMilliseconds()``` method in the Java SDK for [Azure Cosmos DB SQL API](https://docs.microsoft.com/en-us/azure/cosmos-db/sql-api-java-get-started).
+In this code sample, we implement retry logic based on the ```RetryAfterMs``` property returned from the service. The is a similar to the approach implemented in the ```getRetryAfterInMilliseconds()``` method in the Java SDK for [Azure Cosmos DB SQL API](https://docs.microsoft.com/en-us/azure/cosmos-db/sql-api-java-get-started).
 
 ## Prerequisites
 * Before you can run this sample, you must have the following prerequisites:
