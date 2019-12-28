@@ -64,7 +64,7 @@ The code included in this sample is intended as a load test to simulate a scenar
 
 We also catch ```NoHostAvailableException``` in order to implement an exponential back off and retry. However, please note that this is implemented purely as a fall back position; if this exception is returned, it is likely that Cosmos DB will not respond any further because provisioned throughput has been completely exhausted, such that not even rate limiting information can be returned. In a real world scenario, you should take steps to increase the provisioned throughput *before reaching this point*. Note that you can do this programmatically in the Azure Cosmos DB API for Cassandra by executing [ALTER commends in CQL](https://docs.microsoft.com/azure/cosmos-db/cassandra-support#keyspace-and-table-options). In production, you should handle 429 errors in a similar fashion to this sample, and monitor the system, increasing throughput if 429 errors are being returned.
 
-As an alternative approach, you may wish to implement the [Azure Cosmos DB extension for Cassandra Retry Policy](https://github.com/Azure/azure-cosmos-cassandra-extensions).
+As an alternative approach, you may prefer to implement the [Azure Cosmos DB extension for Cassandra Retry Policy](https://github.com/Azure/azure-cosmos-cassandra-extensions). However, you should ensure that you account for [query idempotence](https://docs.datastax.com/en/developer/java-driver/3.0/manual/idempotence/), and the relevant rules for [retries](https://docs.datastax.com/en/developer/java-driver/3.0/manual/retries/#retries-and-idempotence). In either case, you should perform sufficient load testing to ensure that the implementation meets your requirements for throttling in your application.
 
 ## Review the code
 
