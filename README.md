@@ -1,64 +1,135 @@
 ---
 page_type: sample
 languages:
-- csharp
+- java
 products:
-- dotnet
-description: "Add 150 character max description"
-urlFragment: "update-this-to-unique-url-stub"
+- azure
+description: "Azure Cosmos DB is a globally distributed multi-model database. One of the supported APIs is the Cassandra API"
+urlFragment: azure-cosmos-db-cassandra-java-rate-limit-sample
 ---
 
-# Official Microsoft Sample
+# Handling rate limited requests in the Azure Cosmos DB API for Cassandra
+Azure Cosmos DB is a globally distributed multi-model database. One of the supported APIs is the Cassandra API. This sample illustrates how to handle rate limited requests. These are also known as [429 errors](https://docs.microsoft.com/rest/api/cosmos-db/http-status-codes-for-cosmosdb), and are returned when the consumed throughput exceeds the number of [Request Units](https://docs.microsoft.com/azure/cosmos-db/request-units) that have been provisioned for the service. 
 
-<!-- 
-Guidelines on README format: https://review.docs.microsoft.com/help/onboard/admin/samples/concepts/readme-template?branch=master
-
-Guidance on onboarding samples to docs.microsoft.com/samples: https://review.docs.microsoft.com/help/onboard/admin/samples/process/onboarding?branch=master
-
-Taxonomies for products and languages: https://review.docs.microsoft.com/new-hope/information-architecture/metadata/taxonomies?branch=master
--->
-
-Give a short description for your sample here. What does it do and why is it important?
-
-## Contents
-
-Outline the file contents of the repository. It helps users navigate the codebase, build configuration and any related assets.
-
-| File/folder       | Description                                |
-|-------------------|--------------------------------------------|
-| `src`             | Sample source code.                        |
-| `.gitignore`      | Define what to ignore at commit time.      |
-| `CHANGELOG.md`    | List of changes to the sample.             |
-| `CONTRIBUTING.md` | Guidelines for contributing to the sample. |
-| `README.md`       | This README file.                          |
-| `LICENSE`         | The license for the sample.                |
+In this code sample, we implement retry logic based on the ```RetryAfterMs``` property returned from the service. This a similar approach to that implemented in the built-in getRetryAfterInMilliseconds() method in the Java SDK for [Azure Cosmos DB SQL API](https://docs.microsoft.com/en-us/azure/cosmos-db/sql-api-java-get-started). It is important to handle rate limiting in Azure Cosmos DB.
 
 ## Prerequisites
+* Before you can run this sample, you must have the following prerequisites:
+    * An active Azure Cassandra API account - If you don't have an account, refer to the [Create Cassandra API account](https://aka.ms/cassapijavaqs).
+    * [Java Development Kit (JDK) 1.8+](http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html)
+        * On Ubuntu, run `apt-get install default-jdk` to install the JDK.
+    * Be sure to set the JAVA_HOME environment variable to point to the folder where the JDK is installed.
+    * [Download](http://maven.apache.org/download.cgi) and [install](http://maven.apache.org/install.html) a [Maven](http://maven.apache.org/) binary archive
+        * On Ubuntu, you can run `apt-get install maven` to install Maven.
+    * [Git](https://www.git-scm.com/)
+        * On Ubuntu, you can run `sudo apt-get install git` to install Git.
 
-Outline the required components and tools that a user might need to have on their machine in order to run the sample. This can be anything from frameworks, SDKs, OS versions or IDE releases.
+## Running this sample
+1. Clone this repository using `git clone git@github.com:Azure-Samples/azure-cosmos-db-cassandra-java-rate-limit-sample.git cosmosdb`.
 
-## Setup
+2. Change directories to the repo using `cd cosmosdb/java-examples`
 
-Explain how to prepare the sample once the user clones or downloads the repository. The section should outline every step necessary to install dependencies and set up any settings (for example, API keys and output folders).
+3. Next, substitute the Cassandra host, username, password  `java-examples\src\main\resources\config.properties` with your Cosmos DB account's values from connectionstring panel of the portal.
 
-## Running the sample
+    ```
+    cassandra_host=<FILLME>
+    cassandra_username=<FILLME>
+    cassandra_password=<FILLME>
+    ssl_keystore_file_path=<FILLME>
+    ssl_keystore_password=<FILLME>
+    ```
+    If ssl_keystore_file_path is not given in config.properties, then by default <JAVA_HOME>/jre/lib/security/cacerts will be used
+    If ssl_keystore_password is not given in config.properties, then the default password 'changeit' will be used
 
-Outline step-by-step instructions to execute the sample and see its output. Include steps for executing the sample from the IDE, starting specific services in the Azure portal or anything related to the overall launch of the code.
+5. Run `mvn clean install` from java-examples folder to build the project. This will generate cosmosdb-cassandra-examples.jar under target folder.
+ 
+6. Run `java -cp target/cosmosdb-cassandra-examples.jar com.azure.cosmosdb.cassandra.examples.UserProfile` in a terminal to start your java application. The Sample should finish with a number of rate limited requests, but with all inserts successful after retries:
 
-## Key concepts
+   ![Console output](./media/output.png)
 
-Provide users with more context on the tools and services used in the sample. Explain some of the code that is being used and how services interact with each other.
+7. To observe the difference when running this test without handling rate limiting, comment the call to userRetry() method in the loadTest() method that is called from main(), and uncomment the line above it, as below, and then re-compile/run:
 
-## Contributing
+    ```java
+        //uncomment the below and comment retryUser() to observe the difference if retry with back off is not used
+        repository.insertUser(preparedStatement, guid.toString(), name, city);
+        //u.retryUser(guid.toString(), name, city, repository, preparedStatement, noOfRetries, 1, u, false);
+    ```
 
-This project welcomes contributions and suggestions.  Most contributions require you to agree to a
-Contributor License Agreement (CLA) declaring that you have the right to, and actually do, grant us
-the rights to use your contribution. For details, visit https://cla.opensource.microsoft.com.
+    You will see a difference in the number of attempted inserts and records found after the test, with rate limiting not handled:
 
-When you submit a pull request, a CLA bot will automatically determine whether you need to provide
-a CLA and decorate the PR appropriately (e.g., status check, comment). Simply follow the instructions
-provided by the bot. You will only need to do this once across all repos using our CLA.
+    ![Console output](./media/output2.png)
 
-This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
-For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or
-contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
+## About the code
+The code included in this sample is intended as a load test to simulate a scenario where Cosmos DB will rate limit requests (return a 429 error) because there are too many requests for the [provisioned throughput](https://docs.microsoft.com/azure/cosmos-db/how-to-provision-container-throughput) in the service. In this sample, we create a Keyspace and table, and run a multi-threaded process that will insert users concurrently into the user table (300 in total with 10 threads at 30 writes per thread). To help generate random data for users, we use a java library called "javafaker", which is included in the build dependencies. The loadTest() will eventually exhaust the provisioned Keyspace RU allocation (default is 400RUs). When ```OverloadedException``` is thrown, we parse the ```RetryAfterMs``` property from the text to determine millseconds to wait before retrying, with a maximum of 10 retry attempts.
+
+We also catch ```NoHostAvailableException``` in order to implement an exponential back off and retry. However, please note that this is implemented purely as a fall back position; if this exception is returned, it is likely that Cosmos DB will not respond any further because provisioned throughput has been completely exhausted, such that not even rate limiting information can be returned. In a real world scenario, you should take steps to increase the provisioned throughput *before reaching this point*. Note that you can do this programmatically in the Azure Cosmos DB API for Cassandra by executing [ALTER commends in CQL](https://docs.microsoft.com/azure/cosmos-db/cassandra-support#keyspace-and-table-options). In production, you should handle 429 errors in a similar fashion to this sample, and monitor the system, increasing throughput if 429 errors are being returned.
+
+As an alternative approach, you may prefer to implement the [Azure Cosmos DB extension for Cassandra Retry Policy](https://github.com/Azure/azure-cosmos-cassandra-extensions). However, you should ensure that you account for [query idempotence](https://docs.datastax.com/en/developer/java-driver/3.0/manual/idempotence/), and the relevant rules for [retries](https://docs.datastax.com/en/developer/java-driver/3.0/manual/retries/#retries-and-idempotence). In either case, you should perform sufficient load testing to ensure that the implementation meets your requirements.
+
+## Review the code
+
+You can review the following files: `src/main/java/com/azure/cosmosdb/cassandra/util/CassandraUtils.java` and `src/main/java/com/azure/cosmosdb/cassandra/repository/UserRepository.java`.
+
+Also take note of the following method in `com.azure.cosmosdb.cassandra.examples.UserProfile` which implements the retry logic:
+
+   ```java
+    public void retryUser(String id, String name, String city, UserRepository repository, PreparedStatement preparedStatement, int retries, int retry, UserProfile u, boolean stop) throws InterruptedException {
+        if (retry >= retries){
+            stop = true;
+        }
+        while(stop==false){
+            try{
+                repository.insertUser(preparedStatement, id, name,
+                city);
+            }
+            catch (OverloadedException e) {
+                retry++;
+                try{
+                    int retryWaitTime = getRetryAfterMs(e.toString(), retry);
+                    u.ratelimitcount.incrementAndGet();;
+                    Thread.sleep(retryWaitTime);
+                    System.out.println("429 error: rate limited. Waited " + retryWaitTime + " milliseconds before retrying");
+                    System.out.println("trying " + retry + " of "+retries+ " times");
+                    try{
+                        //recursively retry until break condition is met (stop = true)
+                        u.retryUser(id, name, city, repository, preparedStatement, retries, retry, u, stop);
+                    }
+                    catch(Exception exx){
+                        u.exceptioncount.incrementAndGet();;
+                        System.out.println("retry failed: "+exx);
+                    }
+                }
+                catch (Exception ex){
+                    System.out.println("could not do retry from OverloadedException catch block: " + ex);
+                }
+            }
+            catch(NoHostAvailableException ex){
+                retry++;
+                System.out.println("Caught NoHostAvailableException: " + ex);
+                System.out.println("Inner Exception of NoHostAvailableException: " + ex.getCause());
+                System.out.println("retrying " + retry + " of "+retries+ "times after NoHostAvailableException");
+
+                //retrying with exponential back-off if NoHostAvailableException caught
+                int waitTimeInMilliSeconds = (int) Math.pow(2, retry) * 100;
+                Thread.sleep(waitTimeInMilliSeconds);
+                u.retryUser(id, name, city, repository, preparedStatement, retries, retry, u, stop);
+                u.exceptioncount.incrementAndGet();;
+            }
+            catch(Exception e){
+                u.exceptioncount.incrementAndGet();;
+                retry++;
+                System.out.println("Exception: "+e);
+            }
+            finally{
+                u.totalRetries.set(u.totalRetries.get() + retry -1);
+                stop = true;
+            }
+        }
+    }
+   ```
+
+## More information
+
+- [Azure Cosmos DB](https://docs.microsoft.com/azure/cosmos-db/introduction)
+- [Java driver Source](https://github.com/datastax/java-driver)
+- [Java driver Documentation](https://docs.datastax.com/en/developer/java-driver/)
